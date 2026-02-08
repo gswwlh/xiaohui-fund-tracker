@@ -1,0 +1,479 @@
+/* 移动端样式 */
+:root {
+    --bg-body: #f0f2f5;
+    --bg-card: #ffffff;
+    --primary: #1890ff;       
+    --text-main: #333333;
+    --text-sub: #666666;
+    --border: #e8e8e8;
+    --pos: #ff4d4f;
+    --neg: #52c41a;
+    --warn: #faad14;
+    --radius: 8px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    padding: 10px;
+}
+
+.container {
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+/* 指数面板 */
+.index-dashboard {
+    background: #1867c0;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 12px rgba(24, 103, 192, 0.2);
+}
+
+.index-title {
+    color: white;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.index-refresh-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.index-refresh-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+
+.index-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.index-item {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 12px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.index-name {
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 8px;
+}
+
+.index-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: white;
+    font-family: 'Consolas', monospace;
+    margin-bottom: 4px;
+}
+
+.index-change {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'Consolas', monospace;
+}
+
+/* 持仓看板 */
+.daily-pnl-dashboard {
+    margin-bottom: 15px;
+}
+
+.pnl-card {
+    background: #1867c0;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 4px 12px rgba(24, 103, 192, 0.2);
+}
+
+.pnl-header {
+    margin-bottom: 15px;
+}
+
+.pnl-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+}
+
+.pnl-summary {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.pnl-summary-item {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.pnl-label {
+    font-size: 11px;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.pnl-value {
+    font-size: 24px;
+    font-weight: 800;
+    font-family: 'Consolas', monospace;
+    color: white;
+    line-height: 1;
+}
+
+.pnl-value-large {
+    font-size: 22px;
+    font-weight: 800;
+    font-family: 'Consolas', monospace;
+    color: #fff;
+    line-height: 1;
+}
+
+.pnl-count-total {
+    font-size: 24px;
+    font-weight: 800;
+    color: white;
+    font-family: 'Consolas', monospace;
+    line-height: 1;
+}
+
+.pnl-rate {
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'Consolas', monospace;
+    color: rgba(255,255,255,0.9);
+    margin-top: 4px;
+}
+
+.pnl-loading {
+    padding: 40px;
+    text-align: center;
+    color: rgba(255,255,255,0.8);
+    display: none;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.pnl-content {
+    padding: 0;
+    margin-top: 15px;
+    background: transparent;
+}
+
+/* 板块样式 */
+.pnl-sector {
+    border-top: 5px solid #ccc;
+    margin-bottom: 12px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    background: white;
+}
+
+.pnl-sector:last-child {
+    margin-bottom: 0;
+}
+
+.pnl-sector-header {
+    background: #fafafa;
+    padding: 12px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.pnl-sector-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+}
+
+.pnl-sector-stats {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.pnl-sector-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.pnl-sector-total {
+    font-size: 18px;
+    font-weight: 800;
+    font-family: 'Consolas', monospace;
+    line-height: 1;
+}
+
+.pnl-sector-asset {
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Consolas', monospace;
+    color: #333;
+    line-height: 1;
+}
+
+.pnl-sector-rate {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Consolas', monospace;
+    line-height: 1;
+}
+
+
+/* 手机端卡片式列表 */
+.pnl-mobile-list {
+    display: block;
+}
+
+.pnl-mobile-item {
+    background: white;
+    padding: 15px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.pnl-mobile-item:last-child {
+    border-bottom: none;
+}
+
+.pnl-mobile-header {
+    margin-bottom: 12px;
+}
+
+.pnl-mobile-fund-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.pnl-mobile-fund-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #333;
+}
+
+.pnl-mobile-fund-code {
+    font-size: 12px;
+    color: #999;
+}
+
+.pnl-mobile-data {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.pnl-mobile-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.pnl-mobile-label {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 6px;
+}
+
+.pnl-mobile-value {
+    font-size: 18px;
+    font-weight: 800;
+    font-family: 'Consolas', monospace;
+    color: #333;
+    line-height: 1.2;
+}
+
+.pnl-mobile-sub {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Consolas', monospace;
+    margin-top: 2px;
+}
+
+/* 用户ID管理弹窗 */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 25px;
+    max-width: 400px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.modal-section {
+    margin-bottom: 20px;
+}
+
+.modal-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.modal-value {
+    font-size: 14px;
+    color: #333;
+    background: #f5f5f5;
+    padding: 12px;
+    border-radius: 6px;
+    font-family: 'Consolas', monospace;
+    word-break: break-all;
+}
+
+.modal-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: 'Consolas', monospace;
+    margin-bottom: 10px;
+}
+
+.modal-input:focus {
+    outline: none;
+    border-color: #1890ff;
+}
+
+.modal-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #1890ff;
+    color: white;
+    transition: all 0.2s;
+}
+
+.modal-btn:hover {
+    background: #40a9ff;
+}
+
+.modal-btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.modal-btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.modal-btn-danger {
+    background: #ff4d4f;
+    color: white;
+}
+
+.modal-btn-danger:hover {
+    background: #ff7875;
+}
+
+/* 通知动画 */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}

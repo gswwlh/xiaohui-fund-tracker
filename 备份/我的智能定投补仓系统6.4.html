@@ -1,0 +1,1874 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能定投系统 (V7 全能旗舰版)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-body: #f0f2f5;
+            --bg-card: #ffffff;
+            --primary: #1890ff;       
+            --text-main: #333333;
+            --text-sub: #666666;
+            --border: #e8e8e8;
+            
+            /* 语义色 */
+            --pos: #ff4d4f; /* 涨/买入/超配 */
+            --neg: #52c41a; /* 跌/卖出/低配 */
+            --warn: #faad14; 
+            
+            --radius: 8px;
+            --shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 30px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* --- 1. 顶部深蓝指挥舱 --- */
+        .dashboard-config {
+            background: #1867c0;
+            color: white;
+            padding: 30px;
+            border-radius: var(--radius);
+            box-shadow: 0 4px 12px rgba(24, 103, 192, 0.2);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .config-group { display: flex; gap: 30px; align-items: center; }
+        .config-item label { display: block; font-size: 13px; color: rgba(255,255,255,0.8); margin-bottom: 8px; }
+        
+        .dash-input {
+            background: white; border: none; color: #333;
+            padding: 10px 15px; border-radius: 6px; font-size: 20px; font-weight: bold;
+            width: 180px; font-family: 'Consolas', monospace;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .dash-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(255,255,255,0.3); }
+
+        .summary-group { display: flex; gap: 40px; text-align: right; }
+        .summary-label { font-size: 12px; color: rgba(255,255,255,0.7); text-transform: uppercase; }
+        .summary-val { font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -0.5px; line-height: 1.2;}
+        .summary-sub { font-size: 14px; color: rgba(255,255,255,0.9); margin-top: 4px; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 25px;}
+        .btn-dash {
+            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+            color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer;
+            font-size: 12px; transition: all 0.2s; display: flex; align-items: center; gap: 5px;
+        }
+        .btn-dash:hover { background: rgba(255,255,255,0.3); }
+        .btn-toggle-active { background: #fff !important; color: #1867c0 !important; font-weight: bold; }
+
+        /* --- 2. 资产分析看板 (默认隐藏) --- */
+        .analysis-dashboard {
+            display: none; 
+            grid-template-columns: 400px 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+            align-items: stretch; 
+        }
+        @media (max-width: 900px) { .analysis-dashboard { grid-template-columns: 1fr; } }
+
+        .chart-card {
+            background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow);
+            padding: 20px; position: relative;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            min-height: 320px;
+        }
+        .chart-container-inner { width: 100%; height: 100%; max-height: 300px; position: relative; }
+
+        .rebalance-card {
+            background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow);
+            padding: 25px; display: flex; flex-direction: column; height: 100%; box-sizing: border-box;
+        }
+        .rb-title { font-size: 18px; font-weight: 800; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; color: #333; }
+        
+        .rb-table { width: 100%; border-collapse: collapse; font-size: 14px; flex: 1; }
+        .rb-table th { text-align: left; padding: 12px 10px; background: #fafafa; color: #888; font-weight: 600; border-bottom: 1px solid #eee; }
+        .rb-table td { padding: 14px 10px; border-bottom: 1px solid #f5f5f5; color: #333; font-weight: 500; }
+        .rb-table tr:last-child td { border-bottom: none; }
+        
+        .tag-status { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 800; }
+        .st-over { background: #fff1f0; color: var(--pos); border: 1px solid #ffa39e; }
+        .st-under { background: #fffbe6; color: var(--warn); border: 1px solid #ffe58f; }
+        .st-ok { background: #f6ffed; color: var(--neg); border: 1px solid #b7eb8f; }
+
+        .rb-action { font-family: 'Consolas', monospace; font-weight: 800; font-size: 15px;}
+        .act-sell { color: var(--neg); } 
+        .act-buy { color: var(--pos); }  
+        
+        .rb-tip { margin-top: 15px; padding-top: 15px; font-size: 12px; color: #999; border-top: 1px dashed #eee; line-height: 1.6; }
+
+        /* --- 3. 复利计算器模块 (新增) --- */
+        .compound-dashboard {
+            display: none; /* 默认隐藏 */
+            grid-template-columns: 350px 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+            align-items: stretch;
+        }
+        @media (max-width: 900px) { .compound-dashboard { grid-template-columns: 1fr; } }
+
+        .compound-inputs {
+            background: var(--bg-card); border-radius: var(--radius); box-shadow: var(--shadow);
+            padding: 25px; display: flex; flex-direction: column; gap: 20px;
+        }
+        .cp-title { font-size: 18px; font-weight: 800; color: #333; margin-bottom: 5px; }
+        
+        .input-row label { display: block; font-size: 13px; color: #666; margin-bottom: 5px; }
+        .input-row input { 
+            width: 100%; padding: 10px; border: 1px solid #d9d9d9; border-radius: 4px;
+            font-size: 16px; font-weight: bold; box-sizing: border-box;
+        }
+        .input-row input:focus { border-color: var(--primary); outline: none; }
+
+        .result-box {
+            background: #f9f9f9; padding: 15px; border-radius: 6px; border: 1px solid #eee; margin-top: 10px;
+        }
+        .res-label { font-size: 12px; color: #888; text-transform: uppercase; }
+        .res-val { font-size: 24px; font-weight: 800; margin-top: 2px; }
+        .res-val.type-a { color: #faad14; } /* 橙色 - 一次性 */
+        .res-val.type-b { color: #1890ff; } /* 蓝色 - 定投 */
+
+        /* --- 今日盈亏模块 --- */
+        .daily-pnl-dashboard {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        .pnl-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .pnl-header {
+            background: #1867c0;
+            color: white;
+            padding: 25px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .pnl-title {
+            font-size: 20px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pnl-summary {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .pnl-summary-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .pnl-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 5px;
+        }
+
+        .pnl-value {
+            font-size: 28px;
+            font-weight: 800;
+            font-family: 'Consolas', monospace;
+        }
+
+        .pnl-count {
+            font-size: 24px;
+            font-weight: 800;
+            color: #52c41a;
+        }
+
+        .pnl-count.loss {
+            color: #ff4d4f;
+        }
+
+        .pnl-loading {
+            padding: 60px;
+            text-align: center;
+            color: #999;
+            display: none;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f0f0f0;
+            border-top-color: #1890ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .pnl-content {
+            padding: 25px;
+            background: var(--bg-body);
+        }
+
+        .pnl-sector {
+            border-top: 5px solid #ccc;
+            margin-bottom: 15px;
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            background: white;
+        }
+
+        .pnl-sector:last-child {
+            margin-bottom: 0;
+        }
+
+        .pnl-sector-header {
+            background: #fafafa;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .pnl-sector-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pnl-sector-total {
+            font-size: 18px;
+            font-weight: 800;
+            font-family: 'Consolas', monospace;
+        }
+
+        .pnl-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .pnl-table th {
+            background: #f9f9f9;
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 12px;
+            color: #888;
+            font-weight: 600;
+            border-bottom: 1px solid #eee;
+        }
+
+        .pnl-table th:nth-child(1) { width: 10%; } /* 基金代码 */
+        .pnl-table th:nth-child(2) { width: 25%; } /* 基金名称 */
+        .pnl-table th:nth-child(3) { width: 12%; } /* 单位净值 */
+        .pnl-table th:nth-child(4) { width: 12%; } /* 日涨幅 */
+        .pnl-table th:nth-child(5) { width: 15%; } /* 持仓份额 */
+        .pnl-table th:nth-child(6) { width: 16%; text-align: right; } /* 今日收益 */
+
+        .pnl-table td:nth-child(1) { width: 10%; }
+        .pnl-table td:nth-child(2) { width: 25%; }
+        .pnl-table td:nth-child(3) { width: 12%; }
+        .pnl-table td:nth-child(4) { width: 12%; }
+        .pnl-table td:nth-child(5) { width: 15%; }
+        .pnl-table td:nth-child(6) { width: 16%; text-align: right; }
+
+        .pnl-table td {
+            padding: 15px;
+            border-bottom: 1px solid #f5f5f5;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .pnl-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .pnl-table tr:hover {
+            background: #fafafa;
+        }
+
+        .fund-code {
+            font-family: 'Consolas', monospace;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .fund-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .nav-value {
+            font-family: 'Consolas', monospace;
+            font-weight: 600;
+        }
+
+        .growth-rate {
+            font-family: 'Consolas', monospace;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        .growth-positive {
+            color: #ff4d4f;
+        }
+
+        .growth-negative {
+            color: #52c41a;
+        }
+
+        .growth-zero {
+            color: #999;
+        }
+
+        .share-amount {
+            font-family: 'Consolas', monospace;
+            color: #666;
+        }
+
+        .daily-profit {
+            font-family: 'Consolas', monospace;
+            font-weight: 800;
+            font-size: 16px;
+        }
+
+        .profit-positive {
+            color: #ff4d4f;
+        }
+
+        .profit-negative {
+            color: #52c41a;
+        }
+
+        .profit-zero {
+            color: #999;
+        }
+
+        /* --- 4. 板块卡片 --- */
+        .sector-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            margin-bottom: 25px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            border-top: 5px solid #ccc;
+            position: relative;
+        }
+        
+        .card-header { padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; background: #fff; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        
+        .sector-name-input { font-size: 18px; font-weight: 800; color: #333; border: 1px solid transparent; background: transparent; width: 260px; padding: 4px; border-radius: 4px; }
+        .sector-name-input:hover { border-color: #eee; }
+        .sector-name-input:focus { border-color: var(--primary); outline: none; background: #fff; }
+
+        .strategy-tag { font-size: 12px; padding: 3px 8px; border-radius: 10px; background: #f5f5f5; color: #666; border: 1px solid #e8e8e8; cursor: pointer; }
+
+        .header-right { display: flex; align-items: center; gap: 15px; background: #f9f9f9; padding: 8px 15px; border-radius: 6px; }
+        .ratio-label { font-size: 13px; color: #666; }
+        .ratio-input { width: 40px; text-align: center; border: 1px solid #d9d9d9; padding: 4px; border-radius: 4px; font-weight: bold; color: #333; background: #fff; }
+        .ratio-input:focus { border-color: var(--primary); outline: none; }
+        
+        .progress-mini { font-size: 12px; color: #999; margin-left: 10px; }
+
+        .tool-bar { display: flex; gap: 5px; margin-right: 10px; }
+        .color-picker { width: 20px; height: 20px; padding: 0; border: none; cursor: pointer; background: none; vertical-align: middle; }
+        .btn-icon { border: none; background: none; cursor: pointer; font-size: 16px; color: #ccc; }
+        .btn-icon:hover { color: #ff4d4f; }
+
+        .table-wrap { padding: 10px 25px 25px 25px; }
+        table { width: 100%; border-collapse: collapse; }
+        
+        .fund-table th { text-align: left; padding: 12px 10px; font-size: 12px; color: #888; font-weight: normal; border-bottom: 1px dashed #eee; }
+        .fund-table td { padding: 15px 10px; border-bottom: 1px solid #f5f5f5; vertical-align: middle; font-size: 14px; }
+        .fund-table tr:last-child td { border-bottom: none; }
+        
+        .tb-input { width: 100%; padding: 8px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 14px; color: #333; transition: all 0.2s; box-sizing: border-box; }
+        .tb-input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2); }
+        .tb-sm { width: 60px; text-align: center; }
+
+        .result-pill { display: block; padding: 8px 15px; border-radius: 4px; font-family: 'Consolas', monospace; font-weight: 700; font-size: 16px; text-align: right; background: #e6f7ff; color: #1890ff; min-width: 90px; }
+        .res-stop { background: #f5f5f5; color: #ccc; font-weight: normal; }
+        
+        .val-display { font-weight: bold; font-family: 'Consolas', monospace; color: #333; }
+        .pf-pos { color: var(--pos); font-size: 12px; }
+        .pf-neg { color: var(--neg); font-size: 12px; }
+
+        .btn-add-fund { width: 100%; padding: 12px; border: 1px dashed #d9d9d9; background: #fafafa; color: #666; cursor: pointer; border-radius: 0 0 var(--radius) var(--radius); font-size: 13px; transition: 0.2s; }
+        .btn-add-fund:hover { color: var(--primary); border-color: var(--primary); background: #fff; }
+
+        .btn-add-sector { width: 100%; padding: 20px; border: 2px dashed #d9d9d9; border-radius: var(--radius); background: transparent; color: #999; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 40px; transition: 0.2s; }
+        .btn-add-sector:hover { border-color: var(--primary); color: var(--primary); background: #f0faff; }
+
+        .warning-box { background: #fff2f0; border: 1px solid #ffccc7; color: #ff4d4f; padding: 12px; text-align: center; margin-bottom: 20px; border-radius: var(--radius); font-weight: 600; display: none; }
+        
+        /* 联网功能样式 */
+        .sync-status { display: inline-block; margin-left: 10px; font-size: 12px; padding: 3px 8px; border-radius: 4px; }
+        .sync-success { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .sync-error { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; }
+        .sync-loading { background: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff; }
+
+        /* --- 5. 底部策略卡片 --- */
+        .strategy-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 40px; margin-bottom: 40px; }
+        @media (max-width: 768px) { .strategy-footer { grid-template-columns: 1fr; } }
+
+        .info-card { background: var(--bg-card); padding: 30px; border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid #eee; }
+        .info-title { font-size: 18px; font-weight: 800; color: var(--text-main); margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 12px; }
+        .strategy-list, .rules-list { padding-left: 0; list-style: none; margin: 0; }
+        .strategy-list li, .rules-list li { margin-bottom: 15px; color: var(--text-sub); font-size: 14px; line-height: 1.6; }
+        .strategy-list li strong, .rules-list li strong { color: #333; }
+        
+        .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+        .green { background: #52c41a; }
+        .yellow { background: #faad14; }
+        .red { background: #ff4d4f; }
+        
+        .highlight-text { color: #1890ff; font-weight: bold; background: #e6f7ff; padding: 2px 4px; border-radius: 4px; }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <div class="dashboard-config">
+        <div style="flex: 1;">
+            <div class="config-group">
+                <div class="config-item">
+                    <label>🎯 计划总投入 (元)</label>
+                    <input type="number" id="totalGoal" class="dash-input" value="700000" onchange="calcAll()">
+                </div>
+                <div class="config-item">
+                    <label>📅 计划定投周期 (月)</label>
+                    <input type="number" id="months" class="dash-input" value="24" onchange="calcAll()">
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn-dash" id="btnToggleRb" onclick="toggleRebalance()">📊 显示再平衡</button>
+                <button class="btn-dash" id="btnToggleCp" onclick="toggleCompound()">🧮 复利推演</button>
+                <button class="btn-dash" id="btnTogglePnl" onclick="toggleDailyPnL()">💰 今日盈亏</button>
+                <button class="btn-dash" id="btnToggleEst" onclick="toggleEstimate()">📈 实时预估</button>
+                <button class="btn-dash" onclick="syncAllFundNav()">🔄 同步实时净值</button>
+                <button class="btn-dash" onclick="exportData()">⬇️ 备份配置</button>
+                <button class="btn-dash" onclick="document.getElementById('importFile').click()">⬆️ 恢复配置</button>
+                <input type="file" id="importFile" style="display:none" onchange="importData(this)">
+            </div>
+            <div id="syncStatus" style="margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.8);"></div>
+        </div>
+
+        <div class="summary-group">
+            <div class="summary-item">
+                <div class="summary-label">已持仓市值</div>
+                <div class="summary-val">¥<span id="currTotalAsset">0</span></div>
+                <div class="summary-sub" id="totalProfitDisplay">--</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">剩余需投入</div>
+                <div class="summary-val">¥<span id="remainToInvest">0</span></div>
+                <div class="summary-sub">定投目标缺口</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="overBudgetWarning" class="warning-box">
+        ⚠️ 警告：当前持仓已超过总投入目标，请增加总投入预算。
+    </div>
+
+    <div class="analysis-dashboard" id="rebalancePanel">
+        <div class="chart-card">
+            <div class="chart-container-inner">
+                <canvas id="assetChart"></canvas>
+            </div>
+            <div style="position:absolute; pointer-events:none; text-align:center;">
+                <div style="font-size:12px; color:#999;">持仓分布</div>
+                <div style="font-weight:bold; font-size:18px;">实时</div>
+            </div>
+        </div>
+
+        <div class="rebalance-card">
+            <div class="rb-title">⚖️ 智能再平衡建议 (Smart Rebalance)</div>
+            <table class="rb-table">
+                <thead>
+                    <tr>
+                        <th>板块</th>
+                        <th style="text-align:center">实际%</th>
+                        <th style="text-align:center">目标%</th>
+                        <th style="text-align:center">状态</th>
+                        <th style="text-align:right">建议操作</th>
+                    </tr>
+                </thead>
+                <tbody id="rebalanceBody"></tbody>
+            </table>
+            <div class="rb-tip">
+                💡 <strong>说明：</strong><br>
+                • 偏差超过 2% 触发颜色提示。<br>
+                • <strong>操作建议</strong>：正数为“需买入金额”(红色)，负数为“需卖出金额”(绿色)。<br>
+                • 建议优先通过下方“定投”来动态平衡（买入低配），而不是频繁卖出。
+            </div>
+        </div>
+    </div>
+
+    <div class="compound-dashboard" id="compoundPanel">
+        <div class="compound-inputs">
+            <div class="cp-title">🔮 复利计算器 (Compound Interest)</div>
+            <div class="input-row">
+                <label>投入总额 (元)</label>
+                <input type="number" id="cpPrincipal" value="1000000" onchange="calcCompound()">
+            </div>
+            <div class="input-row">
+                <label>预估年化收益率 (%)</label>
+                <input type="number" id="cpRate" value="10" onchange="calcCompound()">
+            </div>
+            <div class="input-row">
+                <label>持有年数</label>
+                <input type="number" id="cpYears" value="10" onchange="calcCompound()">
+            </div>
+            <div class="result-box">
+                <div class="res-label">A. 一次性投入 N年后总额</div>
+                <div class="res-val type-a" id="resLumpSum">¥0</div>
+            </div>
+            <div class="result-box">
+                <div class="res-label">B. 定投 N年后总额 (到达总额)</div>
+                <div class="res-val type-b" id="resDCA">¥0</div>
+                <div style="font-size:12px; color:#999; margin-top:5px;">(月定投: <span id="cpMonthlyInput">¥0</span>)</div>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-container-inner" style="max-height: 400px;">
+                <canvas id="compoundChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="daily-pnl-dashboard" id="dailyPnlPanel">
+        <div class="pnl-card">
+            <div class="pnl-header">
+                <div class="pnl-title">💰 今日盈亏明细 (Daily P&L)</div>
+                <div class="pnl-summary">
+                    <div class="pnl-summary-item">
+                        <span class="pnl-label">今日总收益</span>
+                        <span class="pnl-value" id="totalDailyPnl">¥0</span>
+                    </div>
+                    <div class="pnl-summary-item">
+                        <span class="pnl-label">盈利基金</span>
+                        <span class="pnl-count" id="profitCount">0</span>
+                    </div>
+                    <div class="pnl-summary-item">
+                        <span class="pnl-label">亏损基金</span>
+                        <span class="pnl-count loss" id="lossCount">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="pnl-loading" id="pnlLoading">
+                <div class="loading-spinner"></div>
+                <div>正在获取今日净值数据...</div>
+            </div>
+            <div class="pnl-content" id="pnlContent"></div>
+        </div>
+    </div>
+
+    <div class="daily-pnl-dashboard" id="estimatePanel">
+        <div class="pnl-card">
+            <div class="pnl-header">
+                <div class="pnl-title">📈 实时预估 (Real-time Estimate)</div>
+                <div class="pnl-summary">
+                    <div class="pnl-summary-item">
+                        <span class="pnl-label">预估总收益</span>
+                        <span class="pnl-value" id="totalEstimatePnl">0</span>
+                    </div>
+                    <div class="pnl-summary-item">
+                        <span class="pnl-label">盈利基金</span>
+                        <span class="pnl-count" id="estimateProfitCount">0</span>
+                    </div>
+                    <div class="pnl-summary-item">
+                        <span class="pnl-label">亏损基金</span>
+                        <span class="pnl-count loss" id="estimateLossCount">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="pnl-loading" id="estimateLoading">
+                <div class="loading-spinner"></div>
+                <div>正在获取实时估算数据...</div>
+            </div>
+            <div class="pnl-content" id="estimateContent"></div>
+        </div>
+    </div>
+
+    <div id="sectors-container"></div>
+
+    <button class="btn-add-sector" onclick="createNewSector()">+ 添加新板块 (Add Sector)</button>
+
+    <div class="strategy-footer">
+        <div class="info-card">
+            <div class="info-title">🚀 智能加仓策略</div>
+            <ul class="strategy-list">
+                <li><span class="dot green"></span> <strong>常规回调 (-10% ~ -15%)</strong><br>维持原计划，不动如山。</li>
+                <li><span class="dot yellow"></span> <strong>技术熊市 (-20% ~ -25%)</strong><br>启动 <span class="highlight-text">1.5倍 - 2倍</span> 定投。</li>
+                <li><span class="dot red"></span> <strong>史诗崩盘 (> -30%)</strong><br>动用备用金，每跌5% <span class="highlight-text">手动买入大额</span>。</li>
+            </ul>
+        </div>
+        <div class="info-card">
+            <div class="info-title">📜 定投军规</div>
+            <ul class="rules-list">
+                <li>1. 只要不失业，绝不停止扣款（底线）。</li>
+                <li>2. 建仓期下跌是好事，要“笑着加仓”。</li>
+                <li>3. 每年生日检查一次动态平衡，若股票占比>75%则止盈转债。</li>
+                <li>4. <strong>美股限购</strong>: 启用多APP（南方/博时/招行）分流。</li>
+            </ul>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- 默认数据模版 ---
+    const DEFAULT_DATA = {
+        totalGoal: 1000000,
+        months: 24,
+        sectors: [
+            {
+                id: 'sec_1', name: 'US 美股 (进攻主力)', color: '#dc2626', weight: 35, strategy: 'sip',
+                funds: [{ name: '摩根标普500(A)', code: '019303', share: 0, cost: 0, nav: 1.0, percent: 60 }]
+            },
+            {
+                id: 'sec_2', name: 'CN A股 (成长复苏)', color: '#db2777', weight: 20, strategy: 'sip',
+                funds: [{ name: '兴全合润', code: '163406', share: 0, cost: 0, nav: 1.0, percent: 70 }]
+            },
+            {
+                id: 'sec_3', name: '红利低波', color: '#059669', weight: 15, strategy: 'sip',
+                funds: [{ name: '南方红利低波', code: '008163', share: 0, cost: 0, nav: 1.0, percent: 65 }]
+            },
+            {
+                id: 'sec_4', name: '黄金避险', color: '#d97706', weight: 15, strategy: 'sip',
+                funds: [{ name: '工银黄金ETF', code: '008142', share: 0, cost: 0, nav: 1.0, percent: 100 }]
+            },
+            {
+                id: 'sec_5', name: '债基底仓', color: '#1890ff', weight: 15, strategy: 'fill',
+                funds: [{ name: '招商产业债A', code: '217022', share: 0, cost: 0, nav: 1.0, percent: 100 }]
+            }
+        ]
+    };
+
+    let appData = null;
+    let myChart = null; // 再平衡图表
+    let compoundChart = null; // 复利图表
+
+    // --- 初始化 ---
+    window.onload = function() {
+        const saved = localStorage.getItem('smartSIP_data_v7'); // 升级到 v7 key
+        if (saved) {
+            try {
+                appData = JSON.parse(saved);
+                if (!appData.sectors) throw new Error("Format error");
+            } catch (e) {
+                console.error(e);
+                appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+            }
+        } else {
+            appData = JSON.parse(JSON.stringify(DEFAULT_DATA));
+        }
+        
+        initChart(); 
+        renderApp();
+    };
+
+    // --- 功能开关 ---
+    function toggleRebalance() {
+        const panel = document.getElementById('rebalancePanel');
+        const btn = document.getElementById('btnToggleRb');
+        const isHidden = panel.style.display !== 'grid';
+        
+        panel.style.display = isHidden ? 'grid' : 'none';
+        btn.innerText = isHidden ? '🫣 隐藏再平衡' : '📊 显示再平衡';
+        btn.classList.toggle('btn-toggle-active');
+        if(isHidden && myChart) myChart.resize(); 
+    }
+
+    function toggleCompound() {
+        const panel = document.getElementById('compoundPanel');
+        const btn = document.getElementById('btnToggleCp');
+        const isHidden = panel.style.display !== 'grid';
+        
+        panel.style.display = isHidden ? 'grid' : 'none';
+        btn.innerText = isHidden ? '🫣 隐藏推演' : '🧮 复利推演';
+        btn.classList.toggle('btn-toggle-active');
+        
+        if(isHidden) {
+            // 首次展开时，自动填入当前总投入目标作为本金
+            if(document.getElementById('cpPrincipal').value == "1000000") {
+                document.getElementById('cpPrincipal').value = document.getElementById('totalGoal').value;
+            }
+            calcCompound(); // 计算并绘图
+        }
+    }
+
+    function toggleDailyPnL() {
+        const panel = document.getElementById('dailyPnlPanel');
+        const btn = document.getElementById('btnTogglePnl');
+        const isHidden = panel.style.display !== 'block';
+        
+        panel.style.display = isHidden ? 'block' : 'none';
+        btn.innerText = isHidden ? '🫣 隐藏盈亏' : '💰 今日盈亏';
+        btn.classList.toggle('btn-toggle-active');
+        
+        if(isHidden) {
+            // 首次展开时，自动获取今日盈亏
+            loadDailyPnL();
+        }
+    }
+
+    function toggleEstimate() {
+        const panel = document.getElementById('estimatePanel');
+        const btn = document.getElementById('btnToggleEst');
+        const isHidden = panel.style.display !== 'block';
+        
+        panel.style.display = isHidden ? 'block' : 'none';
+        btn.innerText = isHidden ? '🫣 隐藏预估' : '📈 实时预估';
+        btn.classList.toggle('btn-toggle-active');
+        
+        if(isHidden) {
+            // 首次展开时，自动获取实时预估
+            loadEstimate();
+        }
+    }
+
+    // 加载今日盈亏数据
+    function loadDailyPnL() {
+        const loadingEl = document.getElementById('pnlLoading');
+        const contentEl = document.getElementById('pnlContent');
+        
+        loadingEl.style.display = 'block';
+        contentEl.innerHTML = '';
+        
+        const fundList = [];
+        
+        // 收集所有基金
+        appData.sectors.forEach(sector => {
+            sector.funds.forEach(fund => {
+                if (fund.code && fund.code.trim() !== '' && fund.share > 0) {
+                    fundList.push({
+                        sectorId: sector.id,
+                        sectorName: sector.name,
+                        sectorColor: sector.color,
+                        code: fund.code,
+                        name: fund.name,
+                        share: fund.share,
+                        costNav: fund.cost
+                    });
+                }
+            });
+        });
+        
+        if (fundList.length === 0) {
+            loadingEl.style.display = 'none';
+            contentEl.innerHTML = '<div style="padding:60px; text-align:center; color:#999;">暂无持仓基金</div>';
+            return;
+        }
+        
+        // 串行获取每只基金的今日数据
+        let currentIndex = 0;
+        const results = [];
+        
+        function fetchNext() {
+            if (currentIndex >= fundList.length) {
+                // 全部完成，渲染结果
+                loadingEl.style.display = 'none';
+                renderDailyPnL(results);
+                return;
+            }
+            
+            const fund = fundList[currentIndex];
+            currentIndex++;
+            
+            fetchDailyNavData(fund.code)
+                .then(data => {
+                    if (data.success) {
+                        // 计算今日收益
+                        const todayNav = data.nav;
+                        const yesterdayNav = data.yesterdayNav || todayNav;
+                        const growthRate = yesterdayNav > 0 ? ((todayNav - yesterdayNav) / yesterdayNav * 100) : 0;
+                        const dailyProfit = fund.share * (todayNav - yesterdayNav);
+                        
+                        results.push({
+                            ...fund,
+                            todayNav: todayNav,
+                            yesterdayNav: yesterdayNav,
+                            growthRate: growthRate,
+                            dailyProfit: dailyProfit,
+                            navDate: data.date
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(`获取 ${fund.code} 失败:`, err);
+                })
+                .finally(() => {
+                    setTimeout(fetchNext, 300);
+                });
+        }
+        
+        fetchNext();
+    }
+
+    // 获取基金今日和昨日净值
+    function fetchDailyNavData(code) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            const timeout = setTimeout(() => {
+                cleanup();
+                reject(new Error('Timeout'));
+            }, 10000);
+
+            function cleanup() {
+                if (script.parentNode) {
+                    script.parentNode.removeChild(script);
+                }
+            }
+
+            script.onload = function() {
+                setTimeout(() => {
+                    try {
+                        if (window.apidata && window.apidata.content) {
+                            const html = window.apidata.content;
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            const rows = doc.querySelectorAll('tbody tr');
+                            
+                            if (rows.length >= 1) {
+                                // 今日净值
+                                const todayCells = rows[0].querySelectorAll('td');
+                                const todayNav = parseFloat(todayCells[1].textContent.trim()) || 0;
+                                const todayDate = todayCells[0].textContent.trim();
+                                
+                                // 昨日净值
+                                let yesterdayNav = todayNav;
+                                if (rows.length >= 2) {
+                                    const yesterdayCells = rows[1].querySelectorAll('td');
+                                    yesterdayNav = parseFloat(yesterdayCells[1].textContent.trim()) || todayNav;
+                                }
+                                
+                                clearTimeout(timeout);
+                                cleanup();
+                                resolve({
+                                    success: true,
+                                    code: code,
+                                    nav: todayNav,
+                                    yesterdayNav: yesterdayNav,
+                                    date: todayDate
+                                });
+                                return;
+                            }
+                        }
+                        clearTimeout(timeout);
+                        cleanup();
+                        reject(new Error('No data'));
+                    } catch (e) {
+                        clearTimeout(timeout);
+                        cleanup();
+                        reject(e);
+                    }
+                }, 200);
+            };
+
+            script.onerror = () => {
+                clearTimeout(timeout);
+                cleanup();
+                reject(new Error('Network error'));
+            };
+
+            script.src = `http://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code=${code}&page=1&per=2&_=${Date.now()}`;
+            document.head.appendChild(script);
+        });
+    }
+
+    // 渲染今日盈亏
+    function renderDailyPnL(results) {
+        const contentEl = document.getElementById('pnlContent');
+        
+        // 按板块分组
+        const sectorMap = {};
+        results.forEach(item => {
+            if (!sectorMap[item.sectorId]) {
+                sectorMap[item.sectorId] = {
+                    name: item.sectorName,
+                    color: item.sectorColor,
+                    funds: []
+                };
+            }
+            sectorMap[item.sectorId].funds.push(item);
+        });
+        
+        // 计算总收益
+        let totalProfit = 0;
+        let profitCount = 0;
+        let lossCount = 0;
+        
+        results.forEach(item => {
+            totalProfit += item.dailyProfit;
+            if (item.dailyProfit > 0) profitCount++;
+            else if (item.dailyProfit < 0) lossCount++;
+        });
+        
+        // 更新顶部汇总
+        const totalPnlEl = document.getElementById('totalDailyPnl');
+        totalPnlEl.textContent = (totalProfit >= 0 ? '+' : '') + totalProfit.toFixed(2);
+        totalPnlEl.style.color = totalProfit >= 0 ? '#ff4d4f' : '#52c41a';
+        document.getElementById('profitCount').textContent = profitCount;
+        document.getElementById('lossCount').textContent = lossCount;
+        
+        // 渲染各板块
+        let html = '';
+        appData.sectors.forEach(sector => {
+            const sectorData = sectorMap[sector.id];
+            if (!sectorData || sectorData.funds.length === 0) return;
+            
+            // 计算板块总收益
+            const sectorProfit = sectorData.funds.reduce((sum, f) => sum + f.dailyProfit, 0);
+            
+            html += `
+                <div class="pnl-sector" style="border-top-color: ${sectorData.color}">
+                    <div class="pnl-sector-header">
+                        <div class="pnl-sector-name">
+                            <span style="color:${sectorData.color}; font-size:20px;">●</span>
+                            ${sectorData.name}
+                        </div>
+                        <div class="pnl-sector-total" style="color: ${sectorProfit >= 0 ? '#ff4d4f' : '#52c41a'}">
+                            ${sectorProfit >= 0 ? '+' : ''}${sectorProfit.toFixed(2)}
+                        </div>
+                    </div>
+                    <table class="pnl-table">
+                        <thead>
+                            <tr>
+                                <th>基金代码</th>
+                                <th>基金名称</th>
+                                <th>单位净值</th>
+                                <th>日涨幅</th>
+                                <th>持仓份额</th>
+                                <th>今日收益</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            sectorData.funds.forEach(fund => {
+                const growthClass = fund.growthRate > 0 ? 'growth-positive' : (fund.growthRate < 0 ? 'growth-negative' : 'growth-zero');
+                const profitClass = fund.dailyProfit > 0 ? 'profit-positive' : (fund.dailyProfit < 0 ? 'profit-negative' : 'profit-zero');
+                
+                html += `
+                    <tr>
+                        <td><span class="fund-code">${fund.code}</span></td>
+                        <td><span class="fund-name">${fund.name}</span></td>
+                        <td><span class="nav-value">${fund.todayNav.toFixed(4)}</span></td>
+                        <td><span class="growth-rate ${growthClass}">${fund.growthRate >= 0 ? '+' : ''}${fund.growthRate.toFixed(2)}%</span></td>
+                        <td><span class="share-amount">${fund.share.toLocaleString()}</span></td>
+                        <td><span class="daily-profit ${profitClass}">${fund.dailyProfit >= 0 ? '+' : ''}${fund.dailyProfit.toFixed(2)}</span></td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        });
+        
+        contentEl.innerHTML = html;
+    }
+
+    // 加载实时预估数据（使用天天基金接口）
+    function loadEstimate() {
+        const loadingEl = document.getElementById('estimateLoading');
+        const contentEl = document.getElementById('estimateContent');
+        
+        loadingEl.style.display = 'block';
+        contentEl.innerHTML = '';
+        
+        const fundList = [];
+        
+        // 收集所有基金
+        appData.sectors.forEach(sector => {
+            sector.funds.forEach(fund => {
+                if (fund.code && fund.code.trim() !== '' && fund.share > 0) {
+                    fundList.push({
+                        sectorId: sector.id,
+                        sectorName: sector.name,
+                        sectorColor: sector.color,
+                        code: fund.code,
+                        name: fund.name,
+                        share: fund.share,
+                        costNav: fund.cost
+                    });
+                }
+            });
+        });
+        
+        if (fundList.length === 0) {
+            loadingEl.style.display = 'none';
+            contentEl.innerHTML = '<div style="padding:60px; text-align:center; color:#999;">暂无持仓基金</div>';
+            return;
+        }
+        
+        // 串行获取每只基金的估算数据
+        let currentIndex = 0;
+        const results = [];
+        
+        function fetchNext() {
+            if (currentIndex >= fundList.length) {
+                // 全部完成，渲染结果
+                loadingEl.style.display = 'none';
+                renderEstimate(results);
+                return;
+            }
+            
+            const fund = fundList[currentIndex];
+            currentIndex++;
+            
+            fetchEstimateDataFromTTFund(fund.code)
+                .then(data => {
+                    if (data.success) {
+                        // 计算预估收益
+                        const estimateNav = data.estimateNav;
+                        const yesterdayNav = data.yesterdayNav;
+                        const growthRate = parseFloat(data.growthRate) || 0;
+                        const dailyProfit = fund.share * (estimateNav - yesterdayNav);
+                        
+                        results.push({
+                            ...fund,
+                            todayNav: estimateNav,
+                            yesterdayNav: yesterdayNav,
+                            growthRate: growthRate,
+                            dailyProfit: dailyProfit,
+                            estimateTime: data.estimateTime
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error(`获取 ${fund.code} 估算数据失败:`, err);
+                })
+                .finally(() => {
+                    setTimeout(fetchNext, 300);
+                });
+        }
+        
+        fetchNext();
+    }
+
+    // 获取天天基金估算数据（独立的JSONP处理）
+    function fetchEstimateDataFromTTFund(code) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            const callbackName = 'ttfund_' + code + '_' + Date.now();
+            
+            const timeout = setTimeout(() => {
+                cleanup();
+                reject(new Error('Timeout'));
+            }, 10000);
+
+            // 创建临时回调函数
+            window[callbackName] = function(data) {
+                clearTimeout(timeout);
+                cleanup();
+                
+                try {
+                    if (data && data.fundcode) {
+                        const estimateNav = parseFloat(data.gsz) || 0;
+                        const yesterdayNav = parseFloat(data.dwjz) || 0;
+                        const growthRate = data.gszzl || '0';
+                        const estimateTime = data.gztime || '';
+                        
+                        resolve({
+                            success: true,
+                            code: code,
+                            estimateNav: estimateNav,
+                            yesterdayNav: yesterdayNav,
+                            growthRate: growthRate,
+                            estimateTime: estimateTime
+                        });
+                    } else {
+                        reject(new Error('Invalid data'));
+                    }
+                } catch (e) {
+                    reject(e);
+                }
+            };
+
+            function cleanup() {
+                delete window[callbackName];
+                if (script.parentNode) {
+                    script.parentNode.removeChild(script);
+                }
+            }
+
+            // 劫持jsonpgz回调
+            const originalJsonpgz = window.jsonpgz;
+            window.jsonpgz = function(data) {
+                window[callbackName](data);
+                // 恢复原回调
+                if (originalJsonpgz) {
+                    window.jsonpgz = originalJsonpgz;
+                }
+            };
+
+            script.onerror = () => {
+                clearTimeout(timeout);
+                cleanup();
+                reject(new Error('Network error'));
+            };
+
+            script.src = `https://fundgz.1234567.com.cn/js/${code}.js?rt=${Date.now()}`;
+            document.head.appendChild(script);
+        });
+    }
+
+    // 渲染实时预估
+    function renderEstimate(results) {
+        const contentEl = document.getElementById('estimateContent');
+        
+        // 按板块分组
+        const sectorMap = {};
+        results.forEach(item => {
+            if (!sectorMap[item.sectorId]) {
+                sectorMap[item.sectorId] = {
+                    name: item.sectorName,
+                    color: item.sectorColor,
+                    funds: []
+                };
+            }
+            sectorMap[item.sectorId].funds.push(item);
+        });
+        
+        // 计算总收益
+        let totalProfit = 0;
+        let profitCount = 0;
+        let lossCount = 0;
+        
+        results.forEach(item => {
+            totalProfit += item.dailyProfit;
+            if (item.dailyProfit > 0) profitCount++;
+            else if (item.dailyProfit < 0) lossCount++;
+        });
+        
+        // 更新顶部汇总
+        const totalPnlEl = document.getElementById('totalEstimatePnl');
+        totalPnlEl.textContent = (totalProfit >= 0 ? '+' : '') + totalProfit.toFixed(2);
+        totalPnlEl.style.color = totalProfit >= 0 ? '#ff4d4f' : '#52c41a';
+        document.getElementById('estimateProfitCount').textContent = profitCount;
+        document.getElementById('estimateLossCount').textContent = lossCount;
+        
+        // 渲染各板块
+        let html = '';
+        appData.sectors.forEach(sector => {
+            const sectorData = sectorMap[sector.id];
+            if (!sectorData || sectorData.funds.length === 0) return;
+            
+            // 计算板块总收益
+            const sectorProfit = sectorData.funds.reduce((sum, f) => sum + f.dailyProfit, 0);
+            
+            html += `
+                <div class="pnl-sector" style="border-top-color: ${sectorData.color}">
+                    <div class="pnl-sector-header">
+                        <div class="pnl-sector-name">
+                            <span style="color:${sectorData.color}; font-size:20px;">●</span>
+                            ${sectorData.name}
+                        </div>
+                        <div class="pnl-sector-total" style="color: ${sectorProfit >= 0 ? '#ff4d4f' : '#52c41a'}">
+                            ${sectorProfit >= 0 ? '+' : ''}${sectorProfit.toFixed(2)}
+                        </div>
+                    </div>
+                    <table class="pnl-table">
+                        <thead>
+                            <tr>
+                                <th>基金代码</th>
+                                <th>基金名称</th>
+                                <th>估算净值</th>
+                                <th>估算涨幅</th>
+                                <th>持仓份额</th>
+                                <th>预估收益</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            sectorData.funds.forEach(fund => {
+                const growthClass = fund.growthRate > 0 ? 'growth-positive' : (fund.growthRate < 0 ? 'growth-negative' : 'growth-zero');
+                const profitClass = fund.dailyProfit > 0 ? 'profit-positive' : (fund.dailyProfit < 0 ? 'profit-negative' : 'profit-zero');
+                
+                html += `
+                    <tr>
+                        <td><span class="fund-code">${fund.code}</span></td>
+                        <td><span class="fund-name">${fund.name}</span></td>
+                        <td><span class="nav-value">${fund.todayNav.toFixed(4)}</span></td>
+                        <td><span class="growth-rate ${growthClass}">${fund.growthRate >= 0 ? '+' : ''}${fund.growthRate.toFixed(2)}%</span></td>
+                        <td><span class="share-amount">${fund.share.toLocaleString()}</span></td>
+                        <td><span class="daily-profit ${profitClass}">${fund.dailyProfit >= 0 ? '+' : ''}${fund.dailyProfit.toFixed(2)}</span></td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        });
+        
+        contentEl.innerHTML = html;
+    }
+
+    // --- 核心计算：复利计算器 ---
+    function calcCompound() {
+        const principal = parseFloat(document.getElementById('cpPrincipal').value) || 0;
+        const rate = parseFloat(document.getElementById('cpRate').value) / 100 || 0;
+        const years = parseFloat(document.getElementById('cpYears').value) || 1;
+
+        // 1. 一次性投入 (Lump Sum)
+        // FV = P * (1+r)^n
+        const finalLumpSum = principal * Math.pow((1 + rate), years);
+        
+        // 2. 定投 (DCA)
+        // 目标是在 Years 年内，累计投入本金达到 principal
+        // 每月需投入 = principal / (years * 12)
+        const monthlyContrib = principal / (years * 12);
+        const monthlyRate = rate / 12;
+        let dcaBalance = 0;
+        
+        // 生成图表数据
+        const labels = [];
+        const dataLump = [];
+        const dataDCA = [];
+        
+        let currentLump = principal;
+        
+        // 初始点 (第0年)
+        labels.push('Start');
+        dataLump.push(principal);
+        dataDCA.push(0);
+
+        // 按年迭代计算
+        for (let y = 1; y <= years; y++) {
+            // Lump Sum 增长
+            currentLump = currentLump * (1 + rate);
+            dataLump.push(currentLump);
+
+            // DCA 增长 (按月复利累加 12次)
+            for(let m=0; m<12; m++) {
+                dcaBalance = (dcaBalance + monthlyContrib) * (1 + monthlyRate);
+            }
+            dataDCA.push(dcaBalance);
+            labels.push(`Year ${y}`);
+        }
+
+        // 更新UI
+        document.getElementById('resLumpSum').innerText = "¥" + Math.round(finalLumpSum).toLocaleString();
+        document.getElementById('resDCA').innerText = "¥" + Math.round(dcaBalance).toLocaleString();
+        document.getElementById('cpMonthlyInput').innerText = "¥" + Math.round(monthlyContrib).toLocaleString();
+
+        // 绘制图表
+        renderCompoundChart(labels, dataLump, dataDCA);
+    }
+
+    function renderCompoundChart(labels, dataA, dataB) {
+        const ctx = document.getElementById('compoundChart').getContext('2d');
+        
+        if (compoundChart) {
+            compoundChart.destroy(); // 销毁旧图表
+        }
+
+        compoundChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '一次性投入 (激进)',
+                        data: dataA,
+                        borderColor: '#faad14', // 橙色
+                        backgroundColor: 'rgba(250, 173, 20, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: '定投积累 (稳健)',
+                        data: dataB,
+                        borderColor: '#1890ff', // 蓝色
+                        backgroundColor: 'rgba(24, 144, 255, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+    }
+
+    // --- 图表初始化 (再平衡) ---
+    function initChart() {
+        const ctx = document.getElementById('assetChart').getContext('2d');
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: [],
+                datasets: [{
+                    data: [],
+                    backgroundColor: [],
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%', 
+                plugins: {
+                    legend: { 
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true, 
+                            padding: 15,
+                            font: { size: 11 }
+                        }
+                    } 
+                }
+            }
+        });
+    }
+
+    // --- 渲染逻辑 (定投部分) ---
+    function renderApp() {
+        document.getElementById('totalGoal').value = appData.totalGoal;
+        document.getElementById('months').value = appData.months;
+
+        const container = document.getElementById('sectors-container');
+        container.innerHTML = ''; 
+
+        appData.sectors.forEach(sector => {
+            const sectorHTML = buildSectorHTML(sector);
+            container.insertAdjacentHTML('beforeend', sectorHTML);
+            
+            const tbody = document.getElementById(`tbody-${sector.id}`);
+            sector.funds.forEach(fund => {
+                tbody.insertAdjacentHTML('beforeend', buildFundRowHTML(sector.id, fund));
+            });
+        });
+
+        reCalcView(); 
+    }
+
+    function buildSectorHTML(sector) {
+        return `
+        <div class="sector-card" id="${sector.id}" style="border-top-color: ${sector.color}">
+            <div class="card-header">
+                <div class="header-left">
+                    <div class="tool-bar">
+                        <input type="color" class="color-picker" value="${sector.color}" onchange="updateSectorColor('${sector.id}', this.value)" title="修改颜色">
+                    </div>
+                    <input type="text" class="sector-name-input" value="${sector.name}" onchange="updateSectorName('${sector.id}', this.value)">
+                    <select class="strategy-tag" onchange="updateSectorStrategy('${sector.id}', this.value)" title="定投策略">
+                        <option value="sip" ${sector.strategy === 'sip' ? 'selected' : ''}>每日定投</option>
+                        <option value="fill" ${sector.strategy === 'fill' ? 'selected' : ''}>一次性补仓</option>
+                    </select>
+                </div>
+                <div class="header-right">
+                    <span class="ratio-label">目标占比:</span>
+                    <input type="number" class="ratio-input sec-weight" value="${sector.weight}" onchange="calcAll()"> %
+                    <span class="progress-mini curr-ratio-text">(完成度 0%)</span>
+                    <button class="btn-icon" onclick="deleteSector('${sector.id}')" title="删除板块">×</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table class="fund-table">
+                    <thead>
+                        <tr>
+                            <th width="20%">基金名称</th><th width="12%">代码</th><th width="12%">份额</th><th width="10%">成本</th><th width="10%">净值</th><th width="8%">板块内占比%</th><th width="12%">市值/盈亏</th><th width="15%" style="text-align:right">今日建议定投</th><th width="3%"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="fund-list" id="tbody-${sector.id}"></tbody>
+                </table>
+            </div>
+            <button class="btn-add-fund" onclick="addFundToSector('${sector.id}')">+ 添加基金</button>
+        </div>
+        `;
+    }
+
+    function buildFundRowHTML(sectorId, fund) {
+        return `
+            <tr>
+                <td><input type="text" class="tb-input f-name" value="${fund.name}" onchange="calcAll()"></td>
+                <td><input type="text" class="tb-input f-code" value="${fund.code}" onchange="calcAll()"></td>
+                <td><input type="number" class="tb-input f-share" value="${fund.share}" onchange="calcAll()"></td>
+                <td><input type="number" class="tb-input f-cost" value="${fund.cost}" onchange="calcAll()"></td>
+                <td><input type="number" class="tb-input f-nav" value="${fund.nav}" onchange="calcAll()"></td>
+                <td><input type="number" class="tb-input tb-sm f-percent" value="${fund.percent}" onchange="calcAll()"></td>
+                <td>
+                    <div class="val-display">0</div>
+                    <div class="pf-sub">--</div>
+                </td>
+                <td style="text-align:right"><span class="result-pill">¥0</span></td>
+                <td style="text-align:center"><button class="btn-icon" onclick="delRow(this)">×</button></td>
+            </tr>
+        `;
+    }
+
+    // --- 交互与计算 ---
+
+    function createNewSector() {
+        const newId = 'sec_' + Date.now();
+        const newSector = {
+            id: newId, name: '新板块', color: '#999999', weight: 0, strategy: 'sip',
+            funds: [{ name: '新基金', code: '', share: 0, cost: 0, nav: 1.0, percent: 100 }]
+        };
+        appData.sectors.push(newSector);
+        
+        const container = document.getElementById('sectors-container');
+        container.insertAdjacentHTML('beforeend', buildSectorHTML(newSector));
+        const tbody = document.getElementById(`tbody-${newId}`);
+        tbody.insertAdjacentHTML('beforeend', buildFundRowHTML(newId, newSector.funds[0]));
+        
+        saveToLocal();
+    }
+
+    function deleteSector(id) {
+        if(!confirm('确定删除该板块吗？')) return;
+        appData.sectors = appData.sectors.filter(s => s.id !== id);
+        document.getElementById(id).remove();
+        calcAll();
+    }
+
+    function addFundToSector(sectorId) {
+        const emptyFund = { name: '', code: '', share: 0, cost: 0, nav: 1.0, percent: 0 };
+        document.getElementById(`tbody-${sectorId}`).insertAdjacentHTML('beforeend', buildFundRowHTML(sectorId, emptyFund));
+        calcAll();
+    }
+
+    function delRow(btn) {
+        btn.closest('tr').remove();
+        calcAll();
+    }
+
+    function updateSectorColor(id, color) {
+        const sector = appData.sectors.find(s => s.id === id);
+        if(sector) sector.color = color;
+        document.getElementById(id).style.borderTopColor = color;
+        calcAll(); // 更新图表颜色
+    }
+    
+    function updateSectorName(id, val) {
+        const sector = appData.sectors.find(s => s.id === id);
+        if(sector) sector.name = val;
+        calcAll(); // 更新表格名称
+    }
+    
+    function updateSectorStrategy(id, val) {
+        const sector = appData.sectors.find(s => s.id === id);
+        if(sector) sector.strategy = val;
+        calcAll();
+    }
+
+    function calcAll() {
+        // 1. 同步顶部
+        appData.totalGoal = parseFloat(document.getElementById('totalGoal').value) || 0;
+        appData.months = parseFloat(document.getElementById('months').value) || 24;
+        const days = appData.months * 21.5;
+
+        let currentTotalAsset = 0;
+        let totalProfit = 0;
+        
+        const chartLabels = [];
+        const chartData = [];
+        const chartColors = [];
+        const rebalanceData = [];
+
+        // 2. 遍历板块
+        appData.sectors.forEach(sector => {
+            const card = document.getElementById(sector.id);
+            if (!card) return;
+
+            sector.weight = parseFloat(card.querySelector('.sec-weight').value) || 0;
+            
+            let sectorCurrentVal = 0;
+            const newFundsList = [];
+
+            const rows = card.querySelectorAll('.fund-list tr');
+            rows.forEach(row => {
+                const name = row.querySelector('.f-name').value;
+                const code = row.querySelector('.f-code').value;
+                const share = parseFloat(row.querySelector('.f-share').value) || 0;
+                const cost = parseFloat(row.querySelector('.f-cost').value) || 0;
+                const nav = parseFloat(row.querySelector('.f-nav').value) || 0;
+                const percent = parseFloat(row.querySelector('.f-percent').value) || 0;
+
+                newFundsList.push({ name, code, share, cost, nav, percent });
+
+                const marketVal = share * nav;
+                const profit = (nav - cost) * share;
+
+                currentTotalAsset += marketVal;
+                totalProfit += profit;
+                sectorCurrentVal += marketVal;
+
+                // 更新行UI
+                row.querySelector('.val-display').innerText = Math.round(marketVal).toLocaleString();
+                const pfEl = row.querySelector('.pf-sub');
+                pfEl.innerText = (profit>=0?'+':'') + Math.round(profit).toLocaleString();
+                pfEl.className = 'pf-sub ' + (profit>=0 ? 'pf-pos' : 'pf-neg');
+            });
+
+            sector.funds = newFundsList;
+            sector._tempCurrentVal = sectorCurrentVal;
+            
+            // 收集图表与再平衡数据
+            chartLabels.push(sector.name);
+            chartData.push(sectorCurrentVal);
+            chartColors.push(sector.color);
+            rebalanceData.push({
+                name: sector.name,
+                color: sector.color,
+                currentVal: sectorCurrentVal,
+                targetRate: sector.weight
+            });
+        });
+
+        // 3. 更新顶部看板
+        const remainToInvest = appData.totalGoal - currentTotalAsset;
+        document.getElementById('currTotalAsset').innerText = Math.round(currentTotalAsset).toLocaleString();
+        document.getElementById('remainToInvest').innerText = Math.round(remainToInvest).toLocaleString();
+        
+        const pfDisplay = document.getElementById('totalProfitDisplay');
+        pfDisplay.innerHTML = `<span style="font-size:16px; color:${totalProfit>=0?'#ff4d4f':'#52c41a'}">浮盈 ${(totalProfit>=0?'+':'')}${Math.round(totalProfit).toLocaleString()}</span>`;
+        document.getElementById('overBudgetWarning').style.display = currentTotalAsset > appData.totalGoal ? 'block' : 'none';
+
+        // 4. 更新图表与再平衡表
+        updateDashboard(chartLabels, chartData, chartColors, rebalanceData, currentTotalAsset);
+
+        // 5. 计算定投缺口
+        appData.sectors.forEach(sector => {
+            const card = document.getElementById(sector.id);
+            if(!card) return;
+
+            const targetSectorVal = appData.totalGoal * (sector.weight / 100);
+            const ratio = targetSectorVal > 0 ? (sector._tempCurrentVal / targetSectorVal * 100) : 0;
+            card.querySelector('.curr-ratio-text').innerText = `(完成度 ${ratio.toFixed(1)}%)`;
+
+            const rows = card.querySelectorAll('.fund-list tr');
+            rows.forEach((row, idx) => {
+                const fund = sector.funds[idx];
+                const fundCurrentVal = fund.share * fund.nav;
+                const fundTargetVal = appData.totalGoal * (sector.weight/100) * (fund.percent/100);
+                const gap = fundTargetVal - fundCurrentVal;
+
+                const pill = row.querySelector('.result-pill');
+                if (gap > 0) {
+                    let amount = 0;
+                    if (sector.strategy === 'fill') amount = gap;
+                    else amount = gap / days;
+                    
+                    pill.className = 'result-pill';
+                    pill.innerText = `¥${Math.round(amount).toLocaleString()}`;
+                } else {
+                    pill.className = 'result-pill res-stop';
+                    pill.innerText = '暂停';
+                }
+            });
+        });
+
+        saveToLocal();
+    }
+
+    // --- 更新图表与再平衡表 ---
+    function updateDashboard(labels, data, colors, rbData, totalAsset) {
+        // 更新图表
+        if (myChart) {
+            myChart.data.labels = labels;
+            myChart.data.datasets[0].data = data;
+            myChart.data.datasets[0].backgroundColor = colors;
+            myChart.update();
+        }
+
+        // 更新表格
+        const tbody = document.getElementById('rebalanceBody');
+        tbody.innerHTML = '';
+        
+        rbData.forEach(item => {
+            const actualRate = totalAsset > 0 ? (item.currentVal / totalAsset * 100) : 0;
+            const diffRate = actualRate - item.targetRate;
+            
+            const targetVal = totalAsset * (item.targetRate / 100);
+            const actionAmount = targetVal - item.currentVal; // 正数=需买入(红色)，负数=需卖出(绿色)
+
+            let statusHtml = '<span class="tag-status st-ok">达标</span>';
+            let actionHtml = '-';
+
+            // 阈值 2%
+            if (diffRate > 2) {
+                statusHtml = `<span class="tag-status st-over">超配 ${diffRate.toFixed(1)}%</span>`;
+                actionHtml = `<span class="rb-action act-sell">卖出 ¥${Math.round(Math.abs(actionAmount)).toLocaleString()}</span>`;
+            } else if (diffRate < -2) {
+                statusHtml = `<span class="tag-status st-under">低配 ${Math.abs(diffRate).toFixed(1)}%</span>`;
+                actionHtml = `<span class="rb-action act-buy">买入 ¥${Math.round(Math.abs(actionAmount)).toLocaleString()}</span>`;
+            }
+
+            const tr = `
+                <tr>
+                    <td><span style="color:${item.color}; font-weight:bold; margin-right:5px;">●</span>${item.name}</td>
+                    <td style="text-align:center; font-weight:bold;">${actualRate.toFixed(1)}%</td>
+                    <td style="text-align:center; color:#999;">${item.targetRate}%</td>
+                    <td style="text-align:center;">${statusHtml}</td>
+                    <td style="text-align:right;">${actionHtml}</td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', tr);
+        });
+    }
+
+    function reCalcView() { calcAll(); }
+
+    function saveToLocal() {
+        localStorage.setItem('smartSIP_data_v7', JSON.stringify(appData));
+    }
+
+    // --- 联网功能：同步基金实际净值（仅东方财富） ---
+    function syncAllFundNav() {
+        const statusEl = document.getElementById('syncStatus');
+        statusEl.innerHTML = '<span class="sync-status sync-loading">🔄 正在同步净值数据...</span>';
+        
+        let totalFunds = 0;
+        let successCount = 0;
+        let errorCount = 0;
+        const fundCodes = [];
+
+        // 收集所有基金代码
+        appData.sectors.forEach(sector => {
+            sector.funds.forEach(fund => {
+                if (fund.code && fund.code.trim() !== '') {
+                    totalFunds++;
+                    fundCodes.push({ code: fund.code, sectorId: sector.id });
+                }
+            });
+        });
+
+        if (totalFunds === 0) {
+            statusEl.innerHTML = '<span class="sync-status sync-error">⚠️ 没有找到有效的基金代码</span>';
+            return;
+        }
+
+        // 串行请求，避免apidata冲突
+        let currentIndex = 0;
+        
+        function fetchNext() {
+            if (currentIndex >= fundCodes.length) {
+                // 全部完成
+                if (errorCount === 0) {
+                    statusEl.innerHTML = `<span class="sync-status sync-success">✅ 成功同步 ${successCount} 只基金净值</span>`;
+                } else {
+                    statusEl.innerHTML = `<span class="sync-status sync-error">⚠️ 同步完成：成功 ${successCount} 只，失败 ${errorCount} 只</span>`;
+                }
+                setTimeout(() => { statusEl.innerHTML = ''; }, 5000);
+                calcAll();
+                return;
+            }
+            
+            const item = fundCodes[currentIndex];
+            currentIndex++;
+            
+            fetchActualNavFromEastmoney(item.code)
+                .then(result => {
+                    if (result.success) {
+                        successCount++;
+                        updateFundNavInUI(result.code, result.nav, result.time);
+                    } else {
+                        errorCount++;
+                    }
+                })
+                .catch(() => {
+                    errorCount++;
+                })
+                .finally(() => {
+                    // 继续下一个
+                    setTimeout(fetchNext, 300); // 延迟300ms避免请求过快
+                });
+        }
+        
+        fetchNext();
+    }
+
+    // 从东方财富获取实际净值
+    function fetchActualNavFromEastmoney(code) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            const uniqueId = 'apidata_' + code + '_' + Date.now();
+            
+            const timeout = setTimeout(() => {
+                cleanup();
+                reject(new Error('Timeout'));
+            }, 10000);
+
+            function cleanup() {
+                if (window[uniqueId]) {
+                    delete window[uniqueId];
+                }
+                if (script.parentNode) {
+                    script.parentNode.removeChild(script);
+                }
+            }
+
+            script.onload = function() {
+                // 给一点时间让脚本执行
+                setTimeout(() => {
+                    try {
+                        // 东方财富接口会设置全局变量 apidata
+                        if (window.apidata && window.apidata.content) {
+                            const html = window.apidata.content;
+                            
+                            // 立即保存到唯一变量，避免被覆盖
+                            window[uniqueId] = JSON.parse(JSON.stringify(window.apidata));
+                            
+                            // 解析HTML表格
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            const rows = doc.querySelectorAll('tbody tr');
+                            
+                            if (rows.length > 0) {
+                                const firstRow = rows[0];
+                                const cells = firstRow.querySelectorAll('td');
+                                
+                                if (cells.length >= 2) {
+                                    const date = cells[0].textContent.trim();
+                                    const nav = parseFloat(cells[1].textContent.trim()) || 0;
+                                    
+                                    clearTimeout(timeout);
+                                    cleanup();
+                                    resolve({
+                                        success: true,
+                                        code: code,
+                                        nav: nav,
+                                        time: date
+                                    });
+                                    return;
+                                }
+                            }
+                        }
+                        clearTimeout(timeout);
+                        cleanup();
+                        reject(new Error('No data'));
+                    } catch (e) {
+                        clearTimeout(timeout);
+                        cleanup();
+                        reject(e);
+                    }
+                }, 200);
+            };
+
+            script.onerror = () => {
+                clearTimeout(timeout);
+                cleanup();
+                reject(new Error('Network error'));
+            };
+
+            script.src = `http://fund.eastmoney.com/f10/F10DataApi.aspx?type=lsjz&code=${code}&page=1&per=1&_=${Date.now()}`;
+            document.head.appendChild(script);
+        });
+    }
+
+    // 更新UI中的净值
+    function updateFundNavInUI(code, nav, time) {
+        // 更新appData
+        appData.sectors.forEach(sector => {
+            sector.funds.forEach(fund => {
+                if (fund.code === code) {
+                    fund.nav = nav;
+                }
+            });
+        });
+
+        // 更新UI输入框
+        document.querySelectorAll('.f-code').forEach(input => {
+            if (input.value === code) {
+                const row = input.closest('tr');
+                const navInput = row.querySelector('.f-nav');
+                navInput.value = nav.toFixed(4);
+                navInput.style.color = '#52c41a'; // 绿色表示实际净值
+                navInput.title = `实际净值 (${time})`;
+            }
+        });
+
+        saveToLocal();
+    }
+
+    function exportData() {
+        const str = localStorage.getItem('smartSIP_data_v7');
+        if (!str) return alert("无数据");
+        const blob = new Blob([str], {type: "application/json"});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `投资策略V7_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+    }
+
+    function importData(input) {
+        const f = input.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = e => {
+            try {
+                const json = JSON.parse(e.target.result);
+                if(!json.sectors) throw new Error();
+                appData = json;
+                saveToLocal();
+                renderApp();
+                alert("配置已恢复");
+            } catch(e){ alert("文件格式错误"); }
+        };
+        r.readAsText(f);
+        input.value = '';
+    }
+</script>
+
+</body>
+</html>

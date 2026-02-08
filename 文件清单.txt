@@ -1,0 +1,88 @@
+智能定投系统 - 拆分版文件清单
+=====================================
+
+【核心文件】
+✅ index-new.html          - 入口文件（需重命名为index.html）
+✅ mobile.html             - 移动端完整页面
+⏳ pc.html                 - PC端页面（临时使用原index.html）
+
+【JavaScript文件】
+✅ js/config.js            - 共享配置（Supabase、用户ID等）
+✅ js/shared.js            - 共享逻辑（数据处理、API调用）
+✅ js/mobile.js            - 移动端专用脚本
+⏳ js/pc.js                - PC端专用脚本（待创建）
+
+【CSS文件】
+✅ css/mobile.css          - 移动端样式
+⏳ css/pc.css              - PC端样式（待创建）
+
+【文档文件】
+✅ 部署说明.md             - 详细部署步骤
+✅ 拆分版快速开始.md       - 快速上手指南
+✅ 拆分完成总结.md         - 拆分工作总结
+✅ README-拆分版.md        - 项目说明文档
+✅ 文件清单.txt            - 本文件
+
+【原有文件】
+📄 index.html              - 原完整版（保留，可作为pc.html使用）
+📄 fund_api.py             - Python API（可选）
+📄 fund_api_simple.py      - 简化版API（可选）
+📄 其他文档...             - 原有的各种说明文档
+
+=====================================
+
+部署前准备：
+1. 将 index-new.html 重命名为 index.html
+2. 将原 index.html 复制为 pc.html
+3. 确保所有 js/ 和 css/ 文件夹中的文件都存在
+4. 检查文件路径是否正确
+
+部署方式：
+- 推荐：使用 GitHub Desktop
+- 备选：GitHub 网页上传
+
+详细步骤请查看《部署说明.md》
+
+=====================================
+
+文件大小估算：
+- index.html (入口): ~2KB
+- mobile.html: ~5KB
+- pc.html: ~150KB (使用原完整版)
+- js/config.js: ~2KB
+- js/shared.js: ~10KB
+- js/mobile.js: ~8KB
+- css/mobile.css: ~15KB
+
+总计约: ~192KB (不含原有文件)
+
+移动端加载: ~40KB (index + mobile + js + css)
+PC端加载: ~165KB (index + pc + js + css)
+
+相比原版单文件(~150KB)：
+- 移动端减少约73%
+- PC端增加约10%（但结构更清晰）
+
+=====================================
+
+检查清单：
+□ 所有文件都已创建
+□ 文件路径使用相对路径
+□ Supabase配置正确
+□ 用户ID功能正常
+□ 移动端样式完整
+□ JavaScript无语法错误
+□ 准备好GitHub账号
+□ 安装了GitHub Desktop（推荐）
+
+=====================================
+
+下一步：
+1. 检查所有文件是否存在
+2. 重命名 index-new.html 为 index.html
+3. 复制原 index.html 为 pc.html
+4. 使用 GitHub Desktop 部署
+5. 测试移动端和PC端
+6. 享受更快的加载速度！
+
+=====================================

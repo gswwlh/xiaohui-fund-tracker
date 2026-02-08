@@ -4,18 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能定投系统 - 移动端</title>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="css/mobile.css">
-    <script src="js/config.js"></script>
-    <script src="js/shared.js"></script>
 </head>
 <body>
 <div class="container">
     <div class="index-dashboard">
         <div class="index-title">
             <span>📊 全球市场指数</span>
-            <button class="index-refresh-btn" onclick="alert('用户ID按钮被点击了！'); showUserIdManager();">🔑 用户ID</button>
-            <button class="index-refresh-btn" onclick="alert('刷新按钮被点击了！'); location.reload();">🔄 刷新</button>
+            <button class="index-refresh-btn" onclick="showUserIdManager()">🔑 用户ID</button>
+            <button class="index-refresh-btn" onclick="location.reload()">🔄 刷新</button>
         </div>
         <div class="index-grid">
             <div class="index-item" id="index-ndx">
@@ -105,6 +103,554 @@
         </div>
     </div>
 </div>
+
+<script>
+// ===== Supabase 配置 =====
+const SUPABASE_URL = 'https://tweusnlqlgiiuchlfbdr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3ZXVzbmxxbGdpaXVjaGxmYmRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNjkxMjksImV4cCI6MjA4NTk0NTEyOX0.3-JvqUMlHigtjwcGHZDdaOhvwq1dDLeoqn2A0gxXNPg';
+
+// 初始化 Supabase
+var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 用户ID管理
+var userId = localStorage.getItem('userId');
+if (!userId) {
+    userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('userId', userId);
+}
+
+function getUserId() {
+    return userId;
+}
+
+function setUserId(newUserId) {
+    userId = newUserId;
+    localStorage.setItem('userId', newUserId);
+}
+
+function resetUserId() {
+    const newUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    userId = newUserId;
+    localStorage.setItem('userId', newUserId);
+    return newUserId;
+}
+
+// 默认数据
+var appData = {
+    totalGoal: 700000,
+    months: 24,
+    sectors: [{
+        id: 1,
+        name: '债基底仓',
+        color: '#1890ff',
+        targetRatio: 35,
+        funds: []
+    }]
+};
+
+// 延迟函数
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 显示通知
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${type === 'success' ? '#52c41a' : type === 'error' ? '#ff4d4f' : '#1890ff'};
+        color: white;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+    `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// 云端存储函数
+async function saveToCloud() {
+    try {
+        const { data: existingData } = await supabase
+            .from('fund_data')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+        
+        if (existingData) {
+            await supabase
+                .from('fund_data')
+                .update({
+                    data: appData,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('user_id', userId);
+        } else {
+            await supabase
+                .from('fund_data')
+                .insert({
+                    user_id: userId,
+                    data: appData,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                });
+        }
+        return true;
+    } catch (error) {
+        console.error('保存失败:', error);
+        return false;
+    }
+}
+
+async function loadFromCloud() {
+    try {
+        const { data, error } = await supabase
+            .from('fund_data')
+            .select('data')
+            .eq('user_id', userId)
+            .maybeSingle();
+        
+        if (data && data.data) {
+            appData = data.data;
+            localStorage.setItem('appData', JSON.stringify(appData));
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('加载失败:', error);
+        return false;
+    }
+}
+
+function loadFromLocal() {
+    const saved = localStorage.getItem('appData');
+    if (saved) {
+        try {
+            appData = JSON.parse(saved);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+    return false;
+}
+
+// 获取指数数据
+async function fetchIndexData(code) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'jsonpCallback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        window[callbackName] = function(data) {
+            delete window[callbackName];
+            document.body.removeChild(script);
+            
+            if (data && data.data) {
+                const item = data.data;
+                const value = (item.f43 / 100).toFixed(2);
+                const change = (item.f170 / 100).toFixed(2);
+                const isPositive = item.f170 >= 0;
+                
+                resolve({ value, change, isPositive });
+            } else {
+                reject(new Error('数据格式错误'));
+            }
+        };
+        
+        const script = document.createElement('script');
+        script.src = `https://push2.eastmoney.com/api/qt/stock/get?secid=${code}&fields=f43,f170&cb=${callbackName}`;
+        script.onerror = () => reject(new Error('加载失败'));
+        document.body.appendChild(script);
+        
+        setTimeout(() => {
+            if (window[callbackName]) {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                reject(new Error('请求超时'));
+            }
+        }, 10000);
+    });
+}
+
+// 获取基金净值
+async function fetchFundNavData(code) {
+    return new Promise((resolve, reject) => {
+        const callbackName = 'fundCallback_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        window[callbackName] = function(data) {
+            delete window[callbackName];
+            document.body.removeChild(script);
+            
+            if (data && data.Datas && data.Datas.length >= 2) {
+                const today = data.Datas[0];
+                const yesterday = data.Datas[1];
+                
+                resolve({
+                    success: true,
+                    nav: parseFloat(today.DWJZ),
+                    yesterdayNav: parseFloat(yesterday.DWJZ),
+                    date: today.FSRQ
+                });
+            } else {
+                reject(new Error('数据不足'));
+            }
+        };
+        
+        const script = document.createElement('script');
+        script.src = `https://api.fund.eastmoney.com/f10/lsjz?fundCode=${code}&pageIndex=1&pageSize=2&callback=${callbackName}`;
+        script.onerror = () => reject(new Error('加载失败'));
+        document.body.appendChild(script);
+        
+        setTimeout(() => {
+            if (window[callbackName]) {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                reject(new Error('请求超时'));
+            }
+        }, 10000);
+    });
+}
+
+// 用户ID管理
+function showUserIdManager() {
+    const modal = document.getElementById('userIdModal');
+    const currentUserIdEl = document.getElementById('currentUserId');
+    
+    if (modal && currentUserIdEl) {
+        currentUserIdEl.textContent = getUserId();
+        modal.classList.add('active');
+    }
+}
+
+function closeUserIdManager() {
+    const modal = document.getElementById('userIdModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+function copyUserId() {
+    const userId = getUserId();
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(userId).then(() => {
+            showNotification('✅ 用户ID已复制到剪贴板', 'success');
+        }).catch(() => {
+            fallbackCopy(userId);
+        });
+    } else {
+        fallbackCopy(userId);
+    }
+}
+
+function fallbackCopy(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    
+    try {
+        document.execCommand('copy');
+        showNotification('✅ 用户ID已复制', 'success');
+    } catch (err) {
+        showNotification('❌ 复制失败，请手动复制', 'error');
+    }
+    
+    document.body.removeChild(textarea);
+}
+
+function applyNewUserId() {
+    const input = document.getElementById('newUserIdInput');
+    const newUserId = input.value.trim();
+    
+    if (!newUserId) {
+        showNotification('❌ 请输入新的用户ID', 'error');
+        return;
+    }
+    
+    setUserId(newUserId);
+    document.getElementById('currentUserId').textContent = newUserId;
+    input.value = '';
+    showNotification('✅ 用户ID已更新', 'success');
+    
+    setTimeout(async () => {
+        await loadFromCloud();
+        loadDailyPnL();
+    }, 1000);
+}
+
+function confirmResetUserId() {
+    if (confirm('确定要重置用户ID吗？这将生成一个新的ID。')) {
+        const newUserId = resetUserId();
+        document.getElementById('currentUserId').textContent = newUserId;
+        showNotification('✅ 用户ID已重置', 'success');
+    }
+}
+
+// 加载指数数据
+async function loadIndexData() {
+    const indices = [
+        { id: 'index-ndx', code: '100.NDX' },
+        { id: 'index-spx', code: '100.SPX' },
+        { id: 'index-csi300', code: '1.000300' },
+        { id: 'index-redlow', code: '1.000922' },
+        { id: 'index-gold', code: '1.518660' }
+    ];
+    
+    for (const index of indices) {
+        try {
+            const data = await fetchIndexData(index.code);
+            const element = document.getElementById(index.id);
+            if (element && data) {
+                element.querySelector('.index-value').textContent = data.value;
+                const changeEl = element.querySelector('.index-change');
+                changeEl.textContent = (data.change >= 0 ? '+' : '') + data.change + '%';
+                changeEl.style.color = data.isPositive ? '#ff4d4f' : '#52c41a';
+            }
+        } catch (error) {
+            console.error(`加载指数 ${index.code} 失败:`, error);
+        }
+        await delay(100);
+    }
+}
+
+// 加载今日盈亏
+async function loadDailyPnL() {
+    const loadingEl = document.getElementById('pnlLoading');
+    const contentEl = document.getElementById('pnlContent');
+    
+    if (loadingEl) loadingEl.style.display = 'block';
+    if (contentEl) contentEl.innerHTML = '';
+    
+    const allFunds = [];
+    appData.sectors.forEach(sector => {
+        sector.funds.forEach(fund => {
+            allFunds.push({
+                ...fund,
+                sectorId: sector.id,
+                sectorName: sector.name,
+                sectorColor: sector.color
+            });
+        });
+    });
+    
+    if (allFunds.length === 0) {
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (contentEl) {
+            contentEl.innerHTML = '<div style="padding:40px;text-align:center;color:#999;">暂无持仓数据</div>';
+        }
+        return;
+    }
+    
+    const results = [];
+    for (const fund of allFunds) {
+        try {
+            const navData = await fetchFundNavData(fund.code);
+            if (navData.success) {
+                const growthRate = ((navData.nav - navData.yesterdayNav) / navData.yesterdayNav) * 100;
+                const dailyProfit = fund.share * (navData.nav - navData.yesterdayNav);
+                
+                results.push({
+                    ...fund,
+                    todayNav: navData.nav,
+                    yesterdayNav: navData.yesterdayNav,
+                    growthRate: growthRate,
+                    dailyProfit: dailyProfit,
+                    date: navData.date
+                });
+            }
+        } catch (error) {
+            console.error(`获取基金 ${fund.code} 净值失败:`, error);
+        }
+        await delay(300);
+    }
+    
+    if (loadingEl) loadingEl.style.display = 'none';
+    
+    if (results.length > 0) {
+        renderDailyPnL(results);
+    } else {
+        if (contentEl) {
+            contentEl.innerHTML = '<div style="padding:40px;text-align:center;color:#999;">获取数据失败，请刷新重试</div>';
+        }
+    }
+}
+
+// 渲染今日盈亏
+function renderDailyPnL(results) {
+    const contentEl = document.getElementById('pnlContent');
+    
+    const sectorMap = {};
+    results.forEach(item => {
+        if (!sectorMap[item.sectorId]) {
+            sectorMap[item.sectorId] = {
+                name: item.sectorName,
+                color: item.sectorColor,
+                funds: []
+            };
+        }
+        sectorMap[item.sectorId].funds.push(item);
+    });
+    
+    let totalProfit = 0;
+    let profitCount = 0;
+    let lossCount = 0;
+    let totalAsset = 0;
+    let totalCost = 0;
+    
+    results.forEach(item => {
+        totalProfit += item.dailyProfit;
+        if (item.dailyProfit > 0) profitCount++;
+        else if (item.dailyProfit < 0) lossCount++;
+        
+        const marketValue = item.share * item.todayNav;
+        const costValue = item.share * item.costNav;
+        totalAsset += marketValue;
+        totalCost += costValue;
+    });
+    
+    const totalFloatProfit = totalAsset - totalCost;
+    const totalFloatProfitRate = totalCost > 0 ? (totalFloatProfit / totalCost * 100) : 0;
+    
+    const totalPnlEl = document.getElementById('totalDailyPnl');
+    totalPnlEl.textContent = (totalProfit >= 0 ? '+' : '') + totalProfit.toFixed(2);
+    totalPnlEl.style.color = totalProfit >= 0 ? '#ff4d4f' : '#52c41a';
+    
+    const dailyProfitRate = totalAsset > 0 ? (totalProfit / totalAsset * 100) : 0;
+    const dailyProfitRateEl = document.getElementById('dailyProfitRate');
+    dailyProfitRateEl.textContent = (dailyProfitRate >= 0 ? '+' : '') + dailyProfitRate.toFixed(2) + '%';
+    dailyProfitRateEl.style.color = dailyProfitRate >= 0 ? '#ff4d4f' : '#52c41a';
+    
+    document.getElementById('totalFundCount').textContent = results.length;
+    const profitLossRatioEl = document.getElementById('profitLossRatio');
+    profitLossRatioEl.innerHTML = `<span style="color: #ff4d4f">${profitCount}</span>/<span style="color: #52c41a">${lossCount}</span>`;
+    
+    const totalAssetEl = document.getElementById('totalAssetInPnl');
+    totalAssetEl.textContent = Math.round(totalAsset).toLocaleString();
+    
+    const totalProfitEl = document.getElementById('totalProfitInPnl');
+    totalProfitEl.textContent = (totalFloatProfit >= 0 ? '+' : '') + Math.round(totalFloatProfit).toLocaleString();
+    totalProfitEl.style.color = totalFloatProfit >= 0 ? '#ff4d4f' : '#52c41a';
+    
+    const totalProfitRateEl = document.getElementById('totalProfitRateInPnl');
+    totalProfitRateEl.textContent = (totalFloatProfitRate >= 0 ? '+' : '') + totalFloatProfitRate.toFixed(2) + '%';
+    totalProfitRateEl.style.color = totalFloatProfitRate >= 0 ? '#ff4d4f' : '#52c41a';
+    
+    let html = '';
+    
+    appData.sectors.forEach(sector => {
+        const sectorData = sectorMap[sector.id];
+        if (!sectorData || sectorData.funds.length === 0) return;
+        
+        const sectorProfit = sectorData.funds.reduce((sum, f) => sum + f.dailyProfit, 0);
+        let sectorTotalAsset = 0;
+        let sectorTotalCost = 0;
+        
+        sectorData.funds.forEach(fund => {
+            const marketValue = fund.share * fund.todayNav;
+            const costValue = fund.share * fund.costNav;
+            sectorTotalAsset += marketValue;
+            sectorTotalCost += costValue;
+        });
+        
+        const sectorHoldingProfit = sectorTotalAsset - sectorTotalCost;
+        const sectorHoldingProfitRate = sectorTotalCost > 0 ? (sectorHoldingProfit / sectorTotalCost * 100) : 0;
+        
+        html += `
+            <div class="pnl-sector" style="border-top-color: ${sectorData.color}">
+                <div class="pnl-sector-header">
+                    <div class="pnl-sector-name">
+                        <span style="color:${sectorData.color}; font-size:20px;">●</span>
+                        ${sectorData.name}
+                    </div>
+                    <div class="pnl-sector-stats">
+                        <div class="pnl-sector-stat">
+                            <div class="pnl-sector-total" style="color: ${sectorProfit >= 0 ? '#ff4d4f' : '#52c41a'}">
+                                ${sectorProfit >= 0 ? '+' : ''}${sectorProfit.toFixed(2)}
+                            </div>
+                        </div>
+                        <div class="pnl-sector-stat">
+                            <div class="pnl-sector-asset">${Math.round(sectorTotalAsset).toLocaleString()}</div>
+                            <div class="pnl-sector-rate" style="color: ${sectorHoldingProfitRate >= 0 ? '#ff4d4f' : '#52c41a'}">
+                                ${sectorHoldingProfitRate >= 0 ? '+' : ''}${sectorHoldingProfitRate.toFixed(2)}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="pnl-mobile-list">
+        `;
+        
+        sectorData.funds.forEach(fund => {
+            const totalMarketValue = fund.share * fund.todayNav;
+            const holdingProfit = totalMarketValue - (fund.share * fund.costNav);
+            const holdingProfitRate = (holdingProfit / (fund.share * fund.costNav)) * 100;
+            
+            html += `
+                <div class="pnl-mobile-item">
+                    <div class="pnl-mobile-header">
+                        <div class="pnl-mobile-fund-info">
+                            <div class="pnl-mobile-fund-name">${fund.name}</div>
+                            <div class="pnl-mobile-fund-code">${fund.code}</div>
+                        </div>
+                    </div>
+                    <div class="pnl-mobile-data">
+                        <div class="pnl-mobile-col">
+                            <div class="pnl-mobile-label">日收益</div>
+                            <div class="pnl-mobile-value" style="color: ${fund.dailyProfit >= 0 ? '#ff4d4f' : '#52c41a'}">
+                                ${fund.dailyProfit >= 0 ? '+' : ''}${fund.dailyProfit.toFixed(2)}
+                            </div>
+                            <div class="pnl-mobile-sub" style="color: ${fund.growthRate >= 0 ? '#ff4d4f' : '#52c41a'}">
+                                ${fund.growthRate >= 0 ? '+' : ''}${fund.growthRate.toFixed(2)}%
+                            </div>
+                        </div>
+                        <div class="pnl-mobile-col">
+                            <div class="pnl-mobile-label">持仓收益</div>
+                            <div class="pnl-mobile-value" style="color: ${holdingProfit >= 0 ? '#ff4d4f' : '#52c41a'}">
+                                ${holdingProfit >= 0 ? '+' : ''}${holdingProfit.toFixed(2)}
+                            </div>
+                            <div class="pnl-mobile-sub" style="color: ${holdingProfitRate >= 0 ? '#ff4d4f' : '#52c41a'}">
+                                ${holdingProfitRate >= 0 ? '+' : ''}${holdingProfitRate.toFixed(2)}%
+                            </div>
+                        </div>
+                        <div class="pnl-mobile-col">
+                            <div class="pnl-mobile-label">总市值</div>
+                            <div class="pnl-mobile-value">${totalMarketValue.toFixed(2)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    });
+    
+    contentEl.innerHTML = html;
+}
+
+// 页面加载
+window.onload = async function() {
+    const cloudLoaded = await loadFromCloud();
+    if (!cloudLoaded) {
+        loadFromLocal();
+    }
+    
+    loadIndexData();
+    loadDailyPnL();
+};
+</script>
 
 <script src="js/mobile.js"></script>
 <script>

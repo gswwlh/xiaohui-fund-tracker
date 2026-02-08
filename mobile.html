@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能定投系统 - 移动端</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="css/mobile.css">
     <script src="js/config.js"></script>
     <script src="js/shared.js"></script>
@@ -14,8 +14,8 @@
     <div class="index-dashboard">
         <div class="index-title">
             <span>📊 全球市场指数</span>
-            <button class="index-refresh-btn" onclick="showUserIdManager()">🔑 用户ID</button>
-            <button class="index-refresh-btn" onclick="location.reload()">🔄 刷新</button>
+            <button class="index-refresh-btn" onclick="alert('用户ID按钮被点击了！'); showUserIdManager();">🔑 用户ID</button>
+            <button class="index-refresh-btn" onclick="alert('刷新按钮被点击了！'); location.reload();">🔄 刷新</button>
         </div>
         <div class="index-grid">
             <div class="index-item" id="index-ndx">
@@ -107,5 +107,23 @@
 </div>
 
 <script src="js/mobile.js"></script>
+<script>
+// 测试JavaScript是否正常加载
+console.log('Mobile.js loaded successfully');
+console.log('Supabase:', typeof window.supabase);
+console.log('Config loaded:', typeof SUPABASE_CONFIG);
+console.log('Shared functions loaded:', typeof fetchIndexData);
+
+// 测试按钮点击
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded');
+    const userIdBtn = document.querySelector('.index-refresh-btn');
+    if (userIdBtn) {
+        console.log('User ID button found');
+    } else {
+        console.log('User ID button NOT found');
+    }
+});
+</script>
 </body>
 </html>

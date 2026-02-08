@@ -275,12 +275,27 @@ function renderDailyPnL(results) {
 
 // 用户ID管理函数
 function showUserIdManager() {
+    console.log('showUserIdManager called');
     const modal = document.getElementById('userIdModal');
     const currentUserIdEl = document.getElementById('currentUserId');
     
+    console.log('modal:', modal);
+    console.log('currentUserIdEl:', currentUserIdEl);
+    
     if (modal && currentUserIdEl) {
-        currentUserIdEl.textContent = getUserId();
-        modal.classList.add('active');
+        try {
+            const userId = getUserId();
+            console.log('userId:', userId);
+            currentUserIdEl.textContent = userId;
+            modal.classList.add('active');
+            console.log('Modal should be visible now');
+        } catch (error) {
+            console.error('Error in showUserIdManager:', error);
+            alert('错误: ' + error.message);
+        }
+    } else {
+        console.error('Modal or currentUserIdEl not found');
+        alert('找不到弹窗元素');
     }
 }
 

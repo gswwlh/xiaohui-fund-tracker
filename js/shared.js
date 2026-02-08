@@ -30,6 +30,10 @@ function loadFromLocal() {
 async function saveToCloud() {
     try {
         const supabase = initSupabase();
+        if (!supabase) {
+            console.warn('Supabase不可用，跳过云端保存');
+            return false;
+        }
         const userId = getUserId();
         
         const { data, error } = await supabase
@@ -56,6 +60,10 @@ async function saveToCloud() {
 async function loadFromCloud() {
     try {
         const supabase = initSupabase();
+        if (!supabase) {
+            console.warn('Supabase不可用，跳过云端加载');
+            return false;
+        }
         const userId = getUserId();
         
         const { data, error } = await supabase

@@ -8,10 +8,19 @@ const SUPABASE_CONFIG = {
 let supabase = null;
 
 function initSupabase() {
-    if (typeof supabase === 'undefined' || supabase === null) {
-        supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+    try {
+        if (typeof window.supabase === 'undefined') {
+            console.warn('Supabase库未加载');
+            return null;
+        }
+        if (typeof supabase === 'undefined' || supabase === null) {
+            supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+        }
+        return supabase;
+    } catch (error) {
+        console.error('初始化Supabase失败:', error);
+        return null;
     }
-    return supabase;
 }
 
 // 用户ID管理
